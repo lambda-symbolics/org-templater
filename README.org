@@ -1,0 +1,14 @@
+* org-templater
+
+Minimal templating for Org documents.
+
+#+begin_src lisp
+(org-templater:render
+  :template-path #p"prompt.org"
+  :config        config)
+#+end_src
+
+Supports:
+- ~{{{:key}}}~ interpolation; missing values render as empty strings.
+- ~#+begin_when :key [value]~ conditional blocks.
+- ~:WHEN: :key [value]~ heading properties applying to the whole subtree.
