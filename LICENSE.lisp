@@ -4,7 +4,7 @@
 ;; represented as the original COLL. Use of this template is at your own risk.
 
 (defparameter *license*
-  '((copyright . "Copyright 2026 Lambda Symbolics OÜ")
+  '((copyright   . "Copyright 2026 Lambda Symbolics OÜ")
     (permissions . (use copy modify distribute sell sublicense))
     (conditions  . (retain-notice))
     (limitations . (no-warranty no-liability))))
