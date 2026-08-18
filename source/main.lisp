@@ -3,7 +3,7 @@
   (:export #:render))
 (in-package #:org-templater)
 
-(defconstant +whitespace+
+(defparameter +whitespace+
   '(#\Space #\Tab #\Return #\Newline))
 
 (defun whitespace-char-p (char)
@@ -222,7 +222,7 @@
                               (emit (aref lines i))
                               (incf i))
                              ((not (condition-true-p condition config))
-                              (setf i (%subtree-end levels i level)))
+                              (setf i (subtree-end levels i level)))
                              (t
                               (emit (aref lines i))
                               (when (some (lambda (line)
@@ -239,7 +239,7 @@
   (let ((text (trim text)))
     (unless (and (> (length text) 1)
                  (char= (char text 0) #\:)
-                 (not (position-if #'%whitespace-char-p text)))
+                 (not (position-if #'whitespace-char-p text)))
       (error "Invalid placeholder ~S." text))
     (intern (string-upcase (subseq text 1)) "KEYWORD")))
 
