@@ -1,0 +1,40 @@
+(defpackage #:org-templater-test
+  (:use #:cl)
+  (:export #:run))
+(in-package #:org-templater-test)
+
+(defun config (&rest plist)
+  (let ((table (make-hash-table :test #'eq)))
+    (loop for (key value) on plist by #'cddr
+          do (setf (gethash key table) value))
+    table))
+
+(defun render (template &rest plist)
+  (org-templater:render :template template :config (apply #'config plist)))
+
+(defun run ()
+  (assert (string= (render "Hello {{{:name}}}." :name "AL")
+                   "Hello AL."))
+  (assert (string= (render "X{{{:absent}}}Y")
+                   "XY"))
+  (assert (string= (render (format nil "#+begin_when :hurry-up-p~%HURRY~%#+end_when~%AFTER~%")
+                                   :hurry-up-p t)
+                   (format nil "HURRY~%AFTER~%")))
+  (assert (string= (render (format nil "#+begin_when :ste-p~%STE~%#+end_when~%AFTER~%"))
+                   (format nil "AFTER~%")))
+  (assert (string= (render (format nil "* Hurry~%:PROPERTIES:~%:WHEN: :hurry-up-p~%:END:~%body~%* Next~%kept~%")
+                                   :hurry-up-p t)
+                   (format nil "* Hurry~%body~%* Next~%kept~%")))
+  (assert (string= (render (format nil "* Hidden~%:PROPERTIES:~%:WHEN: :immutable-p~%:END:~%secret~%** Child~%also~%* Next~%kept~%")
+                                   :immutable-p nil)
+                   (format nil "* Next~%kept~%")))
+  (assert (string= (render (format nil "* Shown~%:PROPERTIES:~%:WHEN: :show~%:CUSTOM: yes~%:END:~%body~%")
+                                   :show t)
+                   (format nil "* Shown~%:PROPERTIES:~%:CUSTOM: yes~%:END:~%body~%")))
+  (handler-case
+      (progn
+        (render "{{{:bad key}}}")
+        (error "Expected invalid placeholder to signal."))
+    (error (condition)
+      (assert (search "Invalid placeholder" (princ-to-string condition)))))
+  t)
