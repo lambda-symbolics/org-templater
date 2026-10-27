@@ -25,19 +25,25 @@
   '(#\Space #\Tab #\Return #\Newline))
 
 (defun whitespace-char-p (char)
+  "Return true when CHAR is a space, tab, carriage return, or newline."
   (member char +whitespace+ :test #'char=))
 
 (defun trim (string)
+  "Return STRING without leading and trailing whitespace."
   (string-trim +whitespace+ string))
 
 (defun trim-left (string)
+  "Return STRING without leading whitespace."
   (string-left-trim +whitespace+ string))
 
 (defun string-prefix-p (prefix string)
+  "Return true when STRING starts with PREFIX, ignoring case."
   (and (<= (length prefix) (length string))
        (string-equal prefix string :end2 (length prefix))))
 
 (defun split-lines (string)
+  "Split STRING at its newlines and return the list of lines.
+Return as a second value whether STRING ends with a newline."
   (let ((lines  '())
         (start  0)
         (length (length string)))
@@ -52,6 +58,8 @@
                  (char= (char string (1- length)) #\Newline)))))
 
 (defun join-lines (lines trailing-newline-p)
+  "Join LINES with newlines into one string.
+End it with a newline when TRAILING-NEWLINE-P is true."
   (if (null lines)
       ""
       (with-output-to-string (out)
@@ -64,6 +72,9 @@
           (write-char #\Newline out)))))
 
 (defun parse-block-directive (line prefix)
+  "Parse LINE as an Org block line that starts with PREFIX, such as #+begin_.
+Return the block name in lower case, the trimmed rest of the line, and true.
+Return nil when LINE is not such a line."
   (let ((line (trim-left line)))
     (when (string-prefix-p prefix line)
       (let* ((start (length prefix))
@@ -75,6 +86,8 @@
                   t))))))
 
 (defun parse-condition (text)
+  "Parse TEXT as a when condition, a keyword with an optional value.
+Return the keyword, the value text, and whether TEXT has a value."
   (let* ((text       (trim text))
          (split      (position-if #'whitespace-char-p text))
          (key-text   (if split (subseq text 0 split) text))
@@ -87,6 +100,9 @@
             (and value-text (plusp (length value-text))))))
 
 (defun condition-true-p (text config)
+  "Return true when the condition TEXT holds in CONFIG.
+A bare key holds when its value is true. A key with a value holds when the
+printed CONFIG value equals that value, ignoring case."
   (multiple-value-bind (key expected expectedp)
       (parse-condition text)
     (multiple-value-bind (value presentp)
@@ -97,6 +113,9 @@
                value)))))
 
 (defun process-when-blocks (lines config)
+  "Return LINES without the #+begin_when blocks whose conditions fail in CONFIG.
+The begin and end lines of every when block go too. Lines inside other
+blocks pass through unchanged."
   (let ((out          (make-array 16 :adjustable t :fill-pointer 0))
         (active-stack '())
         (opaque-block nil))
@@ -141,6 +160,8 @@
       (coerce out 'list))))
 
 (defun heading-level (line)
+  "Return the number of stars that start the Org heading LINE.
+Return nil when LINE is not a heading."
   (let ((length (length line))
         (level  0))
     (loop while (and (< level length)
@@ -152,6 +173,8 @@
       level)))
 
 (defun heading-levels (lines)
+  "Return a vector of the heading level of each line in the vector LINES.
+Lines that are not headings, and lines inside blocks, get nil."
   (let* ((length       (length lines))
          (levels       (make-array length :initial-element nil))
          (opaque-block nil))
@@ -171,6 +194,9 @@
                   (setf (aref levels i) (heading-level line)))))))))
 
 (defun property-drawer-range (lines heading-index)
+  "Find the property drawer right below the heading at HEADING-INDEX in LINES.
+Return the indexes of its PROPERTIES and END lines, and true. Return nil
+when the heading has no drawer."
   (let ((start  (1+ heading-index))
         (length (length lines)))
     (when (and (< start length)
@@ -183,6 +209,8 @@
              :heading (aref lines heading-index)))))
 
 (defun when-property (line)
+  "Parse LINE as a WHEN property line.
+Return the property value and true, or nil for any other line."
   (let ((line (trim line)))
     (when (and (> (length line) 2)
                (char= (char line 0) #\:))
@@ -192,6 +220,9 @@
           (values (trim (subseq line (1+ end))) t))))))
 
 (defun drawer-condition (lines start end)
+  "Read the property drawer between the lines START and END of LINES.
+Return the WHEN condition text, whether the drawer has one, and the list of
+its other lines."
   (let ((condition   nil)
         (foundp      nil)
         (other-lines '()))
@@ -208,6 +239,8 @@
     (values condition foundp (nreverse other-lines))))
 
 (defun subtree-end (levels start level)
+  "Return the index in LEVELS where the subtree of the heading at START ends.
+That is the next heading of LEVEL or lower, or the length of LEVELS."
   (loop for i from (1+ start) below (length levels)
         for next-level = (aref levels i)
         when (and next-level (<= next-level level))
@@ -215,6 +248,9 @@
         finally (return (length levels))))
 
 (defun process-heading-whens (lines config)
+  "Return LINES without the subtrees whose WHEN property fails in CONFIG.
+Kept headings lose the WHEN property, and lose their drawer when nothing
+else is in it."
   (let* ((lines  (coerce lines 'vector))
          (levels (heading-levels lines))
          (out    (make-array 16 :adjustable t :fill-pointer 0))
@@ -254,6 +290,7 @@
       (coerce out 'list))))
 
 (defun placeholder-key (text)
+  "Return the keyword that the placeholder TEXT names."
   (let ((text (trim text)))
     (unless (and (> (length text) 1)
                  (char= (char text 0) #\:)
@@ -262,6 +299,8 @@
     (intern (string-upcase (subseq text 1)) "KEYWORD")))
 
 (defun interpolate (string config)
+  "Replace each {{{:key}}} placeholder in STRING with its value in CONFIG.
+Keys that are missing or nil become empty text."
   (with-output-to-string (out)
     (loop with position = 0
           for start = (search "{{{" string :start2 position)
@@ -282,6 +321,7 @@
                      (setf position (+ end 3))))))))
 
 (defun read-file-string (path)
+  "Return the contents of the file at PATH as a string."
   (with-open-file (in path :direction :input :element-type 'character)
     (with-output-to-string (out)
       (loop for char = (read-char in nil nil)
@@ -290,6 +330,11 @@
 
 (defun render (&key template template-path
                  (config (make-hash-table :test #'eq)))
+  "Render an Org template and return the result as a string.
+Take the template from the string TEMPLATE or from the file at TEMPLATE-PATH,
+and supply exactly one of them. CONFIG is a hash table from keywords to
+values. Drop the #+begin_when blocks and the subtrees with a WHEN property
+whose conditions fail, then fill in the {{{:key}}} placeholders."
   (when (eql (null template) (null template-path))
     (error 'render-source-error :template      template
                                 :template-path template-path))
