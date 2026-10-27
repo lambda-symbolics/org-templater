@@ -13,7 +13,12 @@
            #:placeholder-invalid-error
            #:placeholder-invalid-error-text
            #:placeholder-unclosed-error
-           #:placeholder-unclosed-error-position))
+           #:placeholder-unclosed-error-position
+           #:render-source-error
+           #:render-source-error-template
+           #:render-source-error-template-path
+           #:render-argument-type-error
+           #:render-argument-type-error-argument))
 (in-package #:org-templater)
 
 (defparameter +whitespace+
@@ -286,14 +291,19 @@
 (defun render (&key template template-path
                  (config (make-hash-table :test #'eq)))
   (when (eql (null template) (null template-path))
-    (error "Supply exactly one of :TEMPLATE or :TEMPLATE-PATH."))
+    (error 'render-source-error :template      template
+                                :template-path template-path))
   (unless (hash-table-p config)
-    (error ":CONFIG must be a hash table."))
+    (error 'render-argument-type-error :argument      ':config
+                                       :datum         config
+                                       :expected-type 'hash-table))
   (let ((source (if template
                     template
                     (read-file-string template-path))))
     (unless (stringp source)
-      (error ":TEMPLATE must be a string."))
+      (error 'render-argument-type-error :argument      ':template
+                                         :datum         source
+                                         :expected-type 'string))
     (multiple-value-bind (lines trailing-newline-p)
         (split-lines source)
       (interpolate
@@ -363,3 +373,27 @@
              (format stream "Unclosed placeholder starting at position ~D."
                      (placeholder-unclosed-error-position condition))))
   (:documentation "Signalled when a placeholder has no closing braces."))
+
+(define-condition render-source-error (error)
+  ((template      :initarg       :template
+                  :reader        render-source-error-template
+                  :documentation "The template string passed to render, or nil.")
+   (template-path :initarg       :template-path
+                  :reader        render-source-error-template-path
+                  :documentation "The template path passed to render, or nil."))
+  (:report (lambda (condition stream)
+             (format stream "Supply exactly one of :TEMPLATE or :TEMPLATE-PATH, got ~S and ~S."
+                     (render-source-error-template condition)
+                     (render-source-error-template-path condition))))
+  (:documentation "Signalled when render gets both a template and a path, or neither."))
+
+(define-condition render-argument-type-error (type-error)
+  ((argument :initarg       :argument
+             :reader        render-argument-type-error-argument
+             :documentation "The keyword that names the render argument."))
+  (:report (lambda (condition stream)
+             (format stream "~S must be of type ~S, got ~S."
+                     (render-argument-type-error-argument condition)
+                     (type-error-expected-type condition)
+                     (type-error-datum condition))))
+  (:documentation "Signalled when a render argument has the wrong type."))
