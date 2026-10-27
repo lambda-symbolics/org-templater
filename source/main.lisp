@@ -22,7 +22,8 @@
 (in-package #:org-templater)
 
 (defparameter +whitespace+
-  '(#\Space #\Tab #\Return #\Newline))
+  '(#\Space #\Tab #\Return #\Newline)
+  "The characters that count as whitespace in templates.")
 
 (defun whitespace-char-p (char)
   "Return true when CHAR is a space, tab, carriage return, or newline."
