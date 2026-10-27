@@ -1,4 +1,5 @@
 (defpackage #:org-templater-test
+  (:documentation "The org-templater tests.")
   (:use #:cl)
   (:export #:run))
 (in-package #:org-templater-test)

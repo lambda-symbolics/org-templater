@@ -1,4 +1,5 @@
 (defpackage #:org-templater
+  (:documentation "Render Org templates with placeholders and conditional sections.")
   (:use #:cl)
   (:export #:render
            #:template-error
