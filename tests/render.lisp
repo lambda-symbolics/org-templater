@@ -4,15 +4,19 @@
 (in-package #:org-templater-test)
 
 (defun config (&rest plist)
+  "Return a hash table that maps each key in PLIST to its value."
   (let ((table (make-hash-table :test #'eq)))
     (loop for (key value) on plist by (lambda (tail) (nthcdr 2 tail))
           do (setf (gethash key table) value))
     table))
 
 (defun render (template &rest plist)
+  "Render TEMPLATE with a config made from the keys and values in PLIST."
   (org-templater:render :template template :config (apply #'config plist)))
 
 (defun run ()
+  "Run the render tests.
+Signal an error when one fails, and return t when all pass."
   (assert (string= (render "Hello {{{:name}}}." :name "AL")
                    "Hello AL."))
   (assert (string= (render "X{{{:absent}}}Y")
