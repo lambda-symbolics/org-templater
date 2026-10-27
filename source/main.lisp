@@ -83,7 +83,7 @@
         (active-stack '())
         (opaque-block nil))
     (labels ((activep ()
-               (if active-stack (car active-stack) t))
+               (if active-stack (first active-stack) t))
              (emit (line)
                (vector-push-extend line out)))
       (dolist (line lines)
