@@ -2,6 +2,7 @@
   (:documentation "The org-templater tests.")
   (:use #:cl)
   (:export #:run))
+
 (in-package #:org-templater-test)
 
 (defun config (&rest plist)
@@ -23,18 +24,18 @@ Signal an error when one fails, and return t when all pass."
   (assert (string= (render "X{{{:absent}}}Y")
                    "XY"))
   (assert (string= (render (format nil "#+begin_when :hurry-up-p~%HURRY~%#+end_when~%AFTER~%")
-                                   :hurry-up-p t)
+                           :hurry-up-p t)
                    (format nil "HURRY~%AFTER~%")))
   (assert (string= (render (format nil "#+begin_when :ste-p~%STE~%#+end_when~%AFTER~%"))
                    (format nil "AFTER~%")))
   (assert (string= (render (format nil "* Hurry~%:PROPERTIES:~%:WHEN: :hurry-up-p~%:END:~%body~%* Next~%kept~%")
-                                   :hurry-up-p t)
+                           :hurry-up-p t)
                    (format nil "* Hurry~%body~%* Next~%kept~%")))
   (assert (string= (render (format nil "* Hidden~%:PROPERTIES:~%:WHEN: :immutable-p~%:END:~%secret~%** Child~%also~%* Next~%kept~%")
-                                   :immutable-p nil)
+                           :immutable-p nil)
                    (format nil "* Next~%kept~%")))
   (assert (string= (render (format nil "* Shown~%:PROPERTIES:~%:WHEN: :show~%:CUSTOM: yes~%:END:~%body~%")
-                                   :show t)
+                           :show t)
                    (format nil "* Shown~%:PROPERTIES:~%:CUSTOM: yes~%:END:~%body~%")))
   (handler-case
       (progn

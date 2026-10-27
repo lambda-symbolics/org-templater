@@ -20,6 +20,7 @@
            #:render-source-error-template-path
            #:render-argument-type-error
            #:render-argument-type-error-argument))
+
 (in-package #:org-templater)
 
 (defparameter +whitespace+
@@ -80,8 +81,8 @@ Return nil when LINE is not such a line."
   (let ((line (trim-left line)))
     (when (string-prefix-p prefix line)
       (let* ((start (length prefix))
-             (end (or (position-if #'whitespace-char-p line :start start)
-                      (length line))))
+             (end   (or (position-if #'whitespace-char-p line :start start)
+                        (length line))))
         (when (> end start)
           (values (string-downcase (subseq line start end))
                   (trim (subseq line end))
@@ -123,6 +124,7 @@ blocks pass through unchanged."
         (opaque-block nil))
     (labels ((activep ()
                (if active-stack (first active-stack) t))
+
              (emit (line)
                (vector-push-extend line out)))
       (dolist (line lines)
