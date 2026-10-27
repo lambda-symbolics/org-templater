@@ -5,7 +5,7 @@
 
 (defun config (&rest plist)
   (let ((table (make-hash-table :test #'eq)))
-    (loop for (key value) on plist by #'cddr
+    (loop for (key value) on plist by (lambda (tail) (nthcdr 2 tail))
           do (setf (gethash key table) value))
     table))
 
