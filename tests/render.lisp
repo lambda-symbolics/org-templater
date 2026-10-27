@@ -35,6 +35,7 @@
       (progn
         (render "{{{:bad key}}}")
         (error "Expected invalid placeholder to signal."))
-    (error (condition)
-      (assert (search "Invalid placeholder" (princ-to-string condition)))))
+    (org-templater:placeholder-invalid-error (condition)
+      (assert (string= (org-templater:placeholder-invalid-error-text condition)
+                       ":bad key"))))
   t)

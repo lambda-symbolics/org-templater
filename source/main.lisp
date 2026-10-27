@@ -1,6 +1,19 @@
 (defpackage #:org-templater
   (:use #:cl)
-  (:export #:render))
+  (:export #:render
+           #:template-error
+           #:when-condition-error
+           #:when-condition-error-text
+           #:when-block-end-error
+           #:when-block-end-error-line
+           #:when-block-unclosed-error
+           #:when-block-unclosed-error-depth
+           #:property-drawer-unclosed-error
+           #:property-drawer-unclosed-error-heading
+           #:placeholder-invalid-error
+           #:placeholder-invalid-error-text
+           #:placeholder-unclosed-error
+           #:placeholder-unclosed-error-position))
 (in-package #:org-templater)
 
 (defparameter +whitespace+
@@ -63,7 +76,7 @@
          (value-text (and split (trim (subseq text split)))))
     (unless (and (> (length key-text) 1)
                  (char= (char key-text 0) #\:))
-      (error "Invalid condition ~S." text))
+      (error 'when-condition-error :text text))
     (values (intern (string-upcase (subseq key-text 1)) "KEYWORD")
             value-text
             (and value-text (plusp (length value-text))))))
@@ -115,11 +128,11 @@
                    (if (and endp (string-equal end-name "when"))
                        (if active-stack
                            (pop active-stack)
-                           (error "Unmatched #+end_when."))
+                           (error 'when-block-end-error :line line))
                        (when (activep)
                          (emit line)))))))))
       (when active-stack
-        (error "Unclosed #+begin_when block."))
+        (error 'when-block-unclosed-error :depth (length active-stack)))
       (coerce out 'list))))
 
 (defun heading-level (line)
@@ -161,8 +174,8 @@
             when (string-equal (trim (aref lines end)) ":END:")
               do (return-from property-drawer-range
                    (values start end t)))
-      (error "Unclosed property drawer under heading ~S."
-             (aref lines heading-index)))))
+      (error 'property-drawer-unclosed-error
+             :heading (aref lines heading-index)))))
 
 (defun when-property (line)
   (let ((line (trim line)))
@@ -240,7 +253,7 @@
     (unless (and (> (length text) 1)
                  (char= (char text 0) #\:)
                  (not (position-if #'whitespace-char-p text)))
-      (error "Invalid placeholder ~S." text))
+      (error 'placeholder-invalid-error :text text))
     (intern (string-upcase (subseq text 1)) "KEYWORD")))
 
 (defun interpolate (string config)
@@ -255,7 +268,7 @@
                    (write-string string out :start position :end start)
                    (let ((end (search "}}}" string :start2 (+ start 3))))
                      (unless end
-                       (error "Unclosed placeholder starting at position ~D." start))
+                       (error 'placeholder-unclosed-error :position start))
                      (let ((value (gethash (placeholder-key
                                             (subseq string (+ start 3) end))
                                            config)))
@@ -290,3 +303,63 @@
          config)
         trailing-newline-p)
        config))))
+
+;;;; -- Conditions --
+
+(define-condition template-error (error)
+  ()
+  (:documentation "The parent of every condition a malformed template signals."))
+
+(define-condition when-condition-error (template-error)
+  ((text :initarg       :text
+         :reader        when-condition-error-text
+         :documentation "The condition text that does not start with a keyword."))
+  (:report (lambda (condition stream)
+             (format stream "Invalid condition ~S."
+                     (when-condition-error-text condition))))
+  (:documentation "Signalled when a when condition does not name a keyword."))
+
+(define-condition when-block-end-error (template-error)
+  ((line :initarg       :line
+         :reader        when-block-end-error-line
+         :documentation "The #+end_when line with no open block."))
+  (:report (lambda (condition stream)
+             (format stream "Unmatched #+end_when line ~S."
+                     (when-block-end-error-line condition))))
+  (:documentation "Signalled when an #+end_when line has no open #+begin_when block."))
+
+(define-condition when-block-unclosed-error (template-error)
+  ((depth :initarg       :depth
+          :reader        when-block-unclosed-error-depth
+          :documentation "How many #+begin_when blocks are still open at the end."))
+  (:report (lambda (condition stream)
+             (format stream "~D unclosed #+begin_when block~:P."
+                     (when-block-unclosed-error-depth condition))))
+  (:documentation "Signalled when the template ends inside a #+begin_when block."))
+
+(define-condition property-drawer-unclosed-error (template-error)
+  ((heading :initarg       :heading
+            :reader        property-drawer-unclosed-error-heading
+            :documentation "The heading line that owns the drawer."))
+  (:report (lambda (condition stream)
+             (format stream "Unclosed property drawer under heading ~S."
+                     (property-drawer-unclosed-error-heading condition))))
+  (:documentation "Signalled when a heading's property drawer has no :END: line."))
+
+(define-condition placeholder-invalid-error (template-error)
+  ((text :initarg       :text
+         :reader        placeholder-invalid-error-text
+         :documentation "The text between the placeholder braces."))
+  (:report (lambda (condition stream)
+             (format stream "Invalid placeholder ~S."
+                     (placeholder-invalid-error-text condition))))
+  (:documentation "Signalled when a placeholder does not hold a single keyword."))
+
+(define-condition placeholder-unclosed-error (template-error)
+  ((position :initarg       :position
+             :reader        placeholder-unclosed-error-position
+             :documentation "The index of the opening braces in the template."))
+  (:report (lambda (condition stream)
+             (format stream "Unclosed placeholder starting at position ~D."
+                     (placeholder-unclosed-error-position condition))))
+  (:documentation "Signalled when a placeholder has no closing braces."))
